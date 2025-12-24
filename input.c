@@ -7,11 +7,9 @@ void input_init(InputHandler *ih) {
 }
 
 void input_poll(InputHandler *ih, InputEvent *out_event) {
-    (void)ih;
 
     memset(out_event, 0, sizeof(InputEvent));
-
-    /* --- Poll SDL events (QUIT) --- */
+    /*Poll SDL events for QUIT*/
     while (SDL_PollEvent(&ih->event)) {
         if (ih->event.type == SDL_QUIT) {
             out_event->quit = 1;
@@ -21,7 +19,7 @@ void input_poll(InputHandler *ih, InputEvent *out_event) {
     /* --- Poll keyboard state --- */
     const uint8_t *state = SDL_GetKeyboardState(NULL);
 
-    /* CHIP-8 keypad mapping (same as your Rust code) */
+    /* CHIP-8 keypad mapping*/
 
     if (state[SDL_SCANCODE_1]) out_event->keypad[0x1] = 1;
     if (state[SDL_SCANCODE_2]) out_event->keypad[0x2] = 1;
@@ -42,6 +40,13 @@ void input_poll(InputHandler *ih, InputEvent *out_event) {
     if (state[SDL_SCANCODE_X]) out_event->keypad[0x0] = 1;
     if (state[SDL_SCANCODE_C]) out_event->keypad[0xB] = 1;
     if (state[SDL_SCANCODE_V]) out_event->keypad[0xF] = 1;
+
+    if (state[SDL_SCANCODE_O]) out_event->dbg_pause = 1;
+    if (state[SDL_SCANCODE_U]) out_event->dbg_resume = 1;
+    if (state[SDL_SCANCODE_I]) out_event->dbg_step = 1;
+    if (state[SDL_SCANCODE_B]) out_event->dbg_break = 1;
+    if (state[SDL_SCANCODE_N]) out_event->dbg_clear_break = 1;
+
 
     /* Quit on ESC */
     if (state[SDL_SCANCODE_ESCAPE]) {

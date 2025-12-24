@@ -16,7 +16,7 @@ typedef struct {
     SquareWave wave;
 } SoundHandler;
 
-SoundHandler *sound_create(int muted);
+SoundHandler *sound_create(SoundHandler *s, int muted);
 void sound_resume(SoundHandler *s);
 void sound_pause(SoundHandler *s);
 void sound_destroy(SoundHandler *s);

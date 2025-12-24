@@ -6,6 +6,7 @@
 #include "timer.h"
 #include "vmemory.h"
 #include "random_byte.h"
+#include "display.h"
 
 /* Constants from memory module */
 #ifndef PROGRAM_START
@@ -22,24 +23,20 @@
 static uint16_t cpu_fetch(Cpu *c);
 static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[16]);
 
-/* ctor/dtor */
-Cpu* cpu_new(Memory *memory, Timer *timer, VMemory *vmemory, RandomByte *rng) {
-    Cpu *c = (Cpu*)malloc(sizeof(Cpu));
-    if (!c) return NULL;
-    if (!memory || !timer || !vmemory || !rng) return NULL;
+Cpu* cpu_new(Cpu *c, Memory *memory, Timer *timer, VMemory *vmemory) {
+
+    if (!memory || !timer || !vmemory) return NULL;
 
     /* Initialize registers */
     c->i = 0x0;
     c->pc = (uint16_t)PROGRAM_START;
     c->sp = 0;
-    memset(c->stack, 0, sizeof(c->stack));
-    memset(c->v, 0, sizeof(c->v));//keys
+    memset(c->stack, 0, sizeof(c->stack));//16 16bit stack
+    memset(c->v, 0, sizeof(c->v));//16 8bit General purpose registers VX
 
-    /* Copy provided structs by value (the Rust code owned them). */
     c->memory = *memory;
     c->timer = *timer;
     c->vmemory = *vmemory;
-    c->rng = *rng;
 }
 
 void cpu_free(Cpu *cpu) {
@@ -50,13 +47,14 @@ void cpu_free(Cpu *cpu) {
 }
 
 /* Public API: cpu_cycle */
-int cpu_cycle(Cpu *cpu, const uint8_t input[16], EmulatorState *out) {
+int cpu_cycle(Cpu *cpu, const uint8_t input[16], DisplayHandler *out) {
     if (!cpu || !input || !out) return 1;
 
     /* fetch-decode-execute */
     uint16_t op_code = cpu_fetch(cpu);
     int rc = cpu_decode_and_execute(cpu, op_code, input);
-    if (rc != 0) return rc;
+    if (rc != 0) 
+        return rc;
 
     /* update draw state */
     if (cpu->vmemory.draw_flag) {
@@ -69,10 +67,9 @@ int cpu_cycle(Cpu *cpu, const uint8_t input[16], EmulatorState *out) {
     return 0;
 }
 
-/* Update timers (60Hz) */
+/* Update timer 60hz */
 int cpu_update_timers(Cpu *cpu) {
     if (!cpu) return 0;
-    /* timer_update returns true/false in your C timer implementation */
     return timer_update(&cpu->timer) ? 1 : 0;
 }
 
@@ -87,16 +84,20 @@ static uint16_t cpu_fetch(Cpu *c) {
     return (uint16_t)((b1 << 8) | b2);
 }
 
-/* Helper macros for convenience */
-#define VX (c->v[x])
-#define VY (c->v[y])
 
 static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[16]) {
-    size_t x = (size_t)((op_code & 0x0F00) >> 8);//second nibble, look one of 16 vx registers
-    size_t y = (size_t)((op_code & 0x00F0) >> 4);//third nibble, look one of 16 vx registers
+    uint8_t n = (uint8_t)(op_code & 0x000F);//first nibble, 4 bit number
+    size_t y = (size_t)((op_code & 0x00F0) >> 4);//second nibble, look one of 16 vx registers
+    size_t x = (size_t)((op_code & 0x0F00) >> 8);//third nibble, look one of 16 vx registers
+    uint8_t kk = (uint8_t)(op_code & 0x00FF);//3rd, 4th nibble, 8 bit immediate number
     uint16_t nnn = (uint16_t)(op_code & 0x0FFF);//2nd, 3rd and 4th nibble, 12 bit immediate memory address
-    uint8_t kk = (uint8_t)(op_code & 0x00FF);//s3rd, 4th nibble, 8 bit immediate number
-    uint8_t n = (uint8_t)(op_code & 0x000F);//forth nibble, 4 bit number
+    /*
+        CHIP-8 uses post incremental stack, meaning:
+            push: write to stack[sp] then sp++
+            pop: sp-- then read froms stack[sp]
+        size_t type is used for indexing
+        uint8_t type is used for represent registers
+    */
 
     int unrecognized = 0;
 
@@ -106,7 +107,7 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
                 case 0x00E0: //CLEAR
                     vmemory_clear(&c->vmemory);
                     break;
-                case 0x00EE: //RETURN
+                case 0x00EE: //RETURN FROM SUBROUTINE
                     if (c->sp == 0) {
                         return -1; /* stack underflow */
                     }
@@ -115,19 +116,19 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
                     break;
                 default:
                     /* 0NNN - SYS addr (ignored) */
-                    /* keep it as unrecognized to match Rust behavior */
                     unrecognized = 1;
             }
             break;
 
         case 0x1000: //JUMP
-            c->pc = nnn;
+            c->pc = nnn;//One way jump no build-in wayback
             break;
 
-        case 0x2000: /* SUB ROUTINES
-            if (c->sp >= STACK_SIZE) return -1; /* stack overflow */
-            c->stack[c->sp] = c->pc;
-            c->sp += 1;
+        case 0x2000: //SUB ROUTINES
+            if (c->sp >= STACK_SIZE) 
+                return -1; /* stack overflow */
+            c->stack[c->sp] = c->pc; //save PC to stack
+            c->sp += 1;//increment sp
             c->pc = nnn;
             break;
 
@@ -140,7 +141,7 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
             break;
 
         case 0x5000: /* SE Vx, Vy (last nibble must be 0) */
-            if ((op_code & 0x000F) == 0) {
+            if (n == 0) {
                 if (c->v[x] == c->v[y]) c->pc += 2;
             } else {
                 unrecognized = 1;
@@ -152,11 +153,11 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
             break;
 
         case 0x7000: /* ADD Vx, byte */
-            c->v[x] = (uint8_t)(c->v[x] + kk);
+            c->v[x] = (uint8_t)(c->v[x] + kk);//overflow can happen 250+10=256 mod 256=4, but its intentional
             break;
 
         case 0x8000:
-            switch (op_code & 0x000F) {
+            switch (n) {
                 case 0x0: /* LD Vx, Vy */
                     c->v[x] = c->v[y];
                     break;
@@ -170,7 +171,7 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
                     c->v[x] = c->v[x] ^ c->v[y];
                     break;
                 case 0x4: { /* ADD Vx, Vy with carry */
-                    unsigned int res = (unsigned int)c->v[x] + (unsigned int)c->v[y];
+                    uint16_t res = (uint16_t)c->v[x] + (uint16_t)c->v[y];
                     c->v[0xF] = (res > 0xFF) ? 1 : 0;
                     c->v[x] = (uint8_t)res;
                     break;
@@ -182,7 +183,7 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
                     c->v[x] = (uint8_t)(vx - vy);
                     break;
                 }
-                case 0x6: /* SHR Vx {, Vy} - original CHIP-8 shifts Vx >> 1 and VF = LSB prior to shift */
+                case 0x6: /* SHR Vx {, Vy} - Save the LSB of VX in VF, before shift VX by 1  */
                     c->v[0xF] = c->v[x] & 0x1;
                     c->v[x] >>= 1;
                     break;
@@ -203,7 +204,7 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
             break;
 
         case 0x9000: /* SNE Vx, Vy */
-            if ((op_code & 0x000F) == 0) {
+            if (n == 0) {
                 if (c->v[x] != c->v[y]) c->pc += 2;
             } else {
                 unrecognized = 1;
@@ -219,7 +220,7 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
             break;
 
         case 0xC000: /* RND Vx, byte */
-            c->v[x] = (uint8_t)(random_byte_sample(&c->rng) & kk);
+            c->v[x] = (uint8_t)((uint8_t)(rand() % 256) & kk);
             break;
 
         case 0xD000: { /* DRW Vx, Vy, nibble */
@@ -252,7 +253,10 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
                 case 0x0A: { /* LD Vx, K - wait for key press, store in Vx */
                     int found = -1;
                     for (int k = 0; k <= 0xF; ++k) {
-                        if (input[k] != 0) { found = k; break; }
+                        if (input[k] != 0) { 
+                            found = k; 
+                            break; 
+                        }
                     }
                     if (found < 0) {
                         /* No key pressed: step PC back 2 bytes to re-execute this instruction */
@@ -278,16 +282,16 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
                 case 0x29: /* LD F, Vx */
                     {
                         uint16_t nibble = (uint16_t)(c->v[x] & 0x0F);
-                        c->i = (uint16_t)(FONTSET_ADDRESS + 5 * nibble);
+                        c->i = (uint16_t)(FONTSET_ADDRESS + 5 * nibble);//4x5 pixel stores 5 bytes, one byte per row
                     }
                     break;
 
                 case 0x33: /* LD B, Vx (BCD) */
                     {
                         uint8_t tmp = c->v[x];
-                        c->memory.mem[c->i + 0] = tmp / 100;
-                        c->memory.mem[c->i + 1] = (tmp / 10) % 10;
-                        c->memory.mem[c->i + 2] = tmp % 10;
+                        c->memory.mem[c->i + 0] = tmp / 100;//100th digit
+                        c->memory.mem[c->i + 1] = (tmp / 10) % 10;//10th digit
+                        c->memory.mem[c->i + 2] = tmp % 10;//1th digit
                     }
                     break;
 
@@ -321,5 +325,3 @@ static int cpu_decode_and_execute(Cpu *c, uint16_t op_code, const uint8_t input[
     return 0;
 }
 
-#undef VX
-#undef VY

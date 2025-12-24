@@ -33,6 +33,8 @@ typedef struct {
     SDL_Color primary_color;
     SDL_Color secondary_color;
     uint32_t scale;
+    uint8_t *draw_pixels;
+    
 } DisplayHandler;
 
 /* Initialize display handler.
@@ -46,7 +48,7 @@ int display_init(DisplayHandler *dh, uint32_t scale, ColorTheme theme);
  * - buffer: pointer to SCREEN_WIDTH * SCREEN_HEIGHT bytes (0 or 1)
  * Returns 0 on success, non-zero on error.
  */
-int display_draw(DisplayHandler *dh, const uint8_t *buffer);
+int display_draw(DisplayHandler *dh);
 
 /* Shutdown and free display resources (window/renderer). Safe to call even if init failed. */
 void display_shutdown(DisplayHandler *dh);

@@ -39,7 +39,7 @@ static int load_program(uint8_t *mem, const uint8_t *program, size_t program_len
         return 1; // error
     }
 
-    memcpy(mem + PROGRAM_START, program, program_len);
+    memcpy(mem + PROGRAM_START, program, program_len);//copy ROM data
     return 0;
 }
 

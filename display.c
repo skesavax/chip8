@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Predefined themes (replicating your Rust constants) */
 static const ColorTheme THEME_RED   = {255, 180, 40, 120, 8, 0};
 static const ColorTheme THEME_GREEN = {55, 255, 40, 30, 80, 0};
 static const ColorTheme THEME_BLUE  = {5, 50, 90, 60, 114, 164};
@@ -27,63 +26,52 @@ int theme_from_str(const char *s, ColorTheme *out_theme) {
     return 0;
 }
 
-int scale_from_str(const char *s, uint32_t *out_scale) {
-    if (!s || !out_scale) return 1;
-    char *endptr = NULL;
-    unsigned long v = strtoul(s, &endptr, 10);
-    if (endptr == s || *endptr != '\0') {
-        fprintf(stderr, "[scale] must be an Integer within [1, 100]. You provided \"%s\"\n", s);
-        return 1;
-    }
-    if (v < 1 || v > 100) {
-        fprintf(stderr, "[scale] must be an Integer within [1, 100]. You provided \"%s\"\n", s);
-        return 1;
-    }
-    *out_scale = (uint32_t)v;
-    return 0;
-}
-
 int display_init(DisplayHandler *dh, uint32_t scale, ColorTheme theme) {
     if (!dh) return 1;
-
+    /*
+    After SDL_Init, SDL_InitSubSystem tells SDL which subsystem to start, SDL_INIT_VIDEO
+    acts as a bitmask flag.*/
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
         fprintf(stderr, "SDL video init failed: %s\n", SDL_GetError());
         return 1;
     }
 
-    /* width and height are SCREEN_WIDTH * scale etc. */
+    /* Default width and height is 64x32, it be scaled to higher or lower */
     uint32_t width = (uint32_t)SCREEN_WIDTH * scale;
     uint32_t height = (uint32_t)SCREEN_HEIGHT * scale;
-
-    SDL_Window *win = SDL_CreateWindow("chip8emu_c",
-                                       SDL_WINDOWPOS_CENTERED,
-                                       SDL_WINDOWPOS_CENTERED,
-                                       (int)width, (int)height,
-                                       0);
+    /* Create SDL window*/
+    SDL_Window *win = SDL_CreateWindow("Welcome to Chip8 Emulator",//title
+                                       SDL_WINDOWPOS_CENTERED,//x-position of window
+                                       SDL_WINDOWPOS_CENTERED,//y-position of window
+                                       (int)width, (int)height,//size of window in pixcels
+                                       SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);//window behaviour, 0 for default
     if (!win) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
         return 1;
     }
-
-    SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!ren) {
+    /*Create Render that draw pixels into the window*/
+    SDL_Renderer *render = SDL_CreateRenderer(win, 
+                            -1,//SDL auto pick rendering driver 
+                            SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);//use GPU and Vsync enable is typical choice.
+    if (!render) {
         fprintf(stderr, "SDL_CreateRenderer failed: %s\n", SDL_GetError());
         SDL_DestroyWindow(win);
         return 1;
     }
 
-    /* Initialize canvas background with secondary color (using same ordering as Rust: theme.sr,sg,sb) */
-    SDL_SetRenderDrawColor(ren, theme.sr, theme.sg, theme.sb, 255);
-    SDL_RenderClear(ren);
-    SDL_RenderPresent(ren);
+    /* Initialize canvas background with secondary color*/
+    SDL_SetRenderDrawColor(render, theme.sr, theme.sg, theme.sb, 255);
+    SDL_RenderClear(render);//clear screen
+    SDL_RenderPresent(render);//show
 
     /* Fill handler */
     dh->window = win;
-    dh->renderer = ren;
+    dh->renderer = render;
     dh->primary_color.r = theme.pr;
     dh->primary_color.g = theme.pg;
     dh->primary_color.b = theme.pb;
     dh->primary_color.a = 255;
+
     dh->secondary_color.r = theme.sr;
     dh->secondary_color.g = theme.sg;
     dh->secondary_color.b = theme.sb;
@@ -93,8 +81,8 @@ int display_init(DisplayHandler *dh, uint32_t scale, ColorTheme theme) {
     return 0;
 }
 
-int display_draw(DisplayHandler *dh, const uint8_t *buffer) {
-    if (!dh || !dh->renderer || !buffer) return 1;
+int display_draw(DisplayHandler *dh) {
+    if (!dh || !dh->renderer || !dh->draw_pixels) return 1;
 
     /* Clear screen with secondary color */
     SDL_SetRenderDrawColor(dh->renderer,
@@ -114,7 +102,7 @@ int display_draw(DisplayHandler *dh, const uint8_t *buffer) {
     /* Draw each set pixel as a filled rectangle of size scale x scale */
     for (size_t y = 0; y < SCREEN_HEIGHT; ++y) {
         for (size_t x = 0; x < SCREEN_WIDTH; ++x) {
-            if (buffer[idx(x, y)] != 1) continue;
+            if (dh->draw_pixels[idx(x, y)] != 1) continue;
             SDL_Rect r;
             r.x = (int)(x * (size_t)dh->scale);
             r.y = (int)(y * (size_t)dh->scale);

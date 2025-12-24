@@ -4,14 +4,22 @@
 #include "SDL.h"
 #include <stdint.h>
 
-typedef struct {
+typedef struct {//@TODO: make it bool
     int quit;               /* bool */
     int restart;            /* bool */
     uint8_t keypad[16];     /* keypad state (0/1) */
+
+    /* Debugger commands */
+    int dbg_pause;
+    int dbg_resume;
+    int dbg_step;
+    int dbg_break;
+    int dbg_clear_break;
 } InputEvent;
 
 typedef struct {
     SDL_Event event;
+    InputEvent ev;
     /* No need to store SDL_EventPump; SDL_PollEvent does that globally */
 } InputHandler;
 

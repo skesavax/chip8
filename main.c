@@ -12,8 +12,7 @@
 
 #include "display.h"
 
-// from your Rust code: cpu_clock_from_str, emulate_chip8, scale_from_str, theme_from_str,
-// DEFAULT_CPU_CLOCK, DEFAULT_SCALE, DEFAULT_THEME
+uint64_t cpu_clock_from_str(const char* str);
 
 static void terminate_with_error(const char *msg) {
     fprintf(stderr, "Application error: %s\n", msg);
@@ -21,8 +20,6 @@ static void terminate_with_error(const char *msg) {
 }
 
 int main(int argc, char *argv[]) {
-
-    // --- CLI Parsing (mirrors clap logic exactly) ---
 
     if (argc < 2) {
         printf("Usage: %s <ROM> [options]\n", argv[0]);
@@ -34,9 +31,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Required argument
     const char *filename = argv[1];
-
     bool muted = false;
     const char *theme_str = NULL;
     const char *scale_str = NULL;
@@ -64,8 +59,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // --- Equivalent to Rust code ---
-
     uint32_t scale;
     if (scale_str != NULL) {
         if (scale_from_str(scale_str, &scale) != 0) {
@@ -86,11 +79,8 @@ int main(int argc, char *argv[]) {
         theme = DEFAULT_THEME;
     }
 
-    int cpu_clock = (clock_str != NULL)
-        ? cpu_clock_from_str(clock_str)
-        : DEFAULT_CPU_CLOCK;
+    int cpu_clock = (clock_str != NULL)? cpu_clock_from_str(clock_str): DEFAULT_CPU_CLOCK;
 
-    // Config struct (same fields as Rust)
     Config config;
     config.program_filename = filename;
     config.theme = theme;
@@ -98,10 +88,34 @@ int main(int argc, char *argv[]) {
     config.cpu_clock = cpu_clock;
     config.muted = muted;
 
-    // Run emulator
     if (emulate_chip8(config) != 0) {
         terminate_with_error("Emulator returned an error");
     }
 
     return 0;
+}
+
+int scale_from_str(const char *s, uint32_t *out_scale) {
+    if (!s || !out_scale) return 1;
+    char *endptr = NULL;
+    unsigned long v = strtoul(s, &endptr, 10);
+    if (endptr == s || *endptr != '\0') {
+        fprintf(stderr, "[scale] must be an Integer within [1, 100]. You provided \"%s\"\n", s);
+        return 1;
+    }
+    if (v < 1 || v > 100) {
+        fprintf(stderr, "[scale] must be an Integer within [1, 100]. You provided \"%s\"\n", s);
+        return 1;
+    }
+    *out_scale = (uint32_t)v;
+    return 0;
+}
+
+uint64_t cpu_clock_from_str(const char* str) {
+    long val = strtol(str, NULL, 10);
+    if(val < 300 || val > 1000) {
+        fprintf(stderr, "[clock] must be in [300,1000], got \"%s\"\n", str);
+        exit(1);
+    }
+    return (uint64_t)val;
 }

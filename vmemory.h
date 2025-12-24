@@ -8,8 +8,8 @@
 #define SCREEN_HEIGHT 32
 
 typedef struct {
-    uint8_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];
-    bool draw_flag;
+    uint8_t buffer[SCREEN_WIDTH * SCREEN_HEIGHT];//screen buffer /video memory
+    bool draw_flag; //Tells emulator screen change- redraw on next frame
 } VMemory;
 
 void vmemory_init(VMemory *vm);
@@ -22,8 +22,8 @@ static inline size_t idx(size_t x, size_t y) {
 }
 
 static inline void normalize_coordinates(uint8_t x, uint8_t y, size_t *nx, size_t *ny) {
-    *nx = x % SCREEN_WIDTH;
-    *ny = y % SCREEN_HEIGHT;
+    *nx = x % SCREEN_WIDTH;//start of X
+    *ny = y % SCREEN_HEIGHT;//start of Y
 }
 
 #endif
