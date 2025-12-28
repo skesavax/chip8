@@ -20,7 +20,6 @@ typedef struct {//@TODO: make it bool
 typedef struct {
     SDL_Event event;
     InputEvent ev;
-    /* No need to store SDL_EventPump; SDL_PollEvent does that globally */
 } InputHandler;
 
 void input_init(InputHandler *ih);

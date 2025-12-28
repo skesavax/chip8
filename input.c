@@ -53,7 +53,7 @@ void input_poll(InputHandler *ih, InputEvent *out_event) {
         out_event->quit = 1;
     }
 
-    /* Restart on Space (same as Rust) */
+    /* Restart on Space*/
     if (state[SDL_SCANCODE_SPACE]) {
         out_event->restart = 1;
     }

@@ -6,7 +6,6 @@
 #include "chip8.h"
 #include "cpu.h"
 #include "memory.h"
-#include "random_byte.h"
 #include "timer.h"
 #include "vmemory.h"
 

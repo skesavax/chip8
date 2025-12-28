@@ -41,7 +41,7 @@ uint8_t vmemory_draw_sprite_no_wrap(VMemory *vm, uint8_t x_pos, uint8_t y_pos, c
         size_t curr_x = x;
         uint8_t mask = 0x80;   // 1000 0000, start with left most pixel
 
-        for (int n = 0; n < 8; n++) {//inner pixel loop
+        for (int col = 0; col < 8; col++) {//inner pixel loop
             if (curr_x >= SCREEN_WIDTH) {//stop if go beyond screen right
                 break;
             }
@@ -51,7 +51,7 @@ uint8_t vmemory_draw_sprite_no_wrap(VMemory *vm, uint8_t x_pos, uint8_t y_pos, c
             mask = 01000000 ->new_pixel = 0
             mask = 00100000 ->new_pixel = 1
             */
-            uint8_t new_pixel = (byte & mask) >> (7 - n);//extract 1 pixcel from sprite byte
+            uint8_t new_pixel = (byte & mask) >> (7 - col);//extract 1 pixcel from sprite byte
             /*
             old = 0 new = 0 res = 0^0=0
             old = 1 new = 0 res = 1

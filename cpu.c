@@ -5,7 +5,6 @@
 #include "memory.h"
 #include "timer.h"
 #include "vmemory.h"
-#include "random_byte.h"
 #include "display.h"
 
 /* Constants from memory module */

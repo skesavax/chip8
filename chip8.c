@@ -65,7 +65,7 @@ int emulate_chip8(Config config) {
         int sound_delay = 0;
 
         while(1) {
-            uint32_t start_ticks = SDL_GetTicks();
+            //uint32_t start_ticks = SDL_GetTicks();
             bool beep = cpu_update_timers(&cpu);
             uint64_t t0 = SDL_GetPerformanceCounter();
             uint64_t freq = SDL_GetPerformanceFrequency();

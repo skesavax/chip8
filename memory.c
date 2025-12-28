@@ -49,9 +49,9 @@ int memory_new(Memory *m, const uint8_t *program, size_t program_len) {
 
     memset(m->mem, 0, MEMORY_SIZE);
 
-    load_fontset(m->mem);
+    load_fontset(m->mem);//copy font to RAM
 
-    if (load_program(m->mem, program, program_len) != 0) {
+    if (load_program(m->mem, program, program_len) != 0) {//copy ROM data to RAM
         free(m->mem);
         m->mem = NULL;
         return 1;

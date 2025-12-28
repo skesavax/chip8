@@ -104,6 +104,7 @@ int display_draw(DisplayHandler *dh) {
         for (size_t x = 0; x < SCREEN_WIDTH; ++x) {
             if (dh->draw_pixels[idx(x, y)] != 1) continue;
             SDL_Rect r;
+            //pixels are small, host window is large, use scale=10 so (3,2)->(30,20)
             r.x = (int)(x * (size_t)dh->scale);
             r.y = (int)(y * (size_t)dh->scale);
             r.w = (int)dh->scale;
