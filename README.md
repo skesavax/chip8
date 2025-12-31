@@ -1,8 +1,9 @@
 ## How to Run CHIP-8
 1. Install SDL2 using MinGW: download SDL2-devel-2.30.8-mingw.tar.
-2. Create a src folder in the repository and copy the include and lib folders from the SDL2 package into it.
-3. Copy SDL2.dll to the root of the repository.
-4. Build and run the emulator using the following commands:
+2. Install mingw32 compiler 32/64 bit windows
+3. Create a src folder in the repository and copy the include and lib folders from the SDL2 package into it.
+4. Copy SDL2.dll to the root of the repository.
+5. Build and run the emulator using the following commands:
 ```
 $ make clean
 $ make all
@@ -259,8 +260,9 @@ Present frame
 Pixels can be drawn by scanning the framebuffer pixel by pixel. For every pixel that is ON, draw a scaled rectangle using 'SDL_RenderFillRect'.
 
 Important: SDL_RenderPresent(dh->renderer) is the final and mandatory step of rendering. Without this call, nothing will appear on the screen, even if all drawing operations were performed correctly.
-
+```
 void display_shutdown(DisplayHandler *dh)
+```
 Cleans up and correctly releases SDL display resources.
 
 Steps performed:
